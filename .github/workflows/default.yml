@@ -22,13 +22,10 @@ jobs:
           update=$(bash scripts/check_updates_gh.sh gitbucket/gitbucket jqjiang/gitbucket)
           echo "::set-output name=update::$update"
   
-  gitbucket:
-    name: Build GitBucket
+  build:
+    name: Build Images
     needs: check
     runs-on: ubuntu-latest
-    if: ${{ needs.check.outputs.gitbucket != 'false' }}
-    env:
-      GITBUCKET_VER: ${{ needs.check.outputs.gitbucket }}
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -39,12 +36,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push
-        id: docker_build
+      - name: Build Gitbucket Image
+        if: ${{ needs.check.outputs.gitbucket != 'false' }}
         uses: docker/build-push-action@v2
         with:
           push: true
           file: gitbucket.Dockerfile
-          tags: jqjiang/gitbucket:latest,jqjiang/gitbucket:${{ env.GITBUCKET_VER }}
+          tags: jqjiang/gitbucket:latest,jqjiang/gitbucket:${{ needs.check.outputs.gitbucket }}
           build-args: |
-            VERSION=${{ env.GITBUCKET_VER }}
+            VERSION=${{ needs.check.outputs.gitbucket }}
