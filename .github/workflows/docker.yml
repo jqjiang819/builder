@@ -2,10 +2,11 @@ name: DockerImages
 
 on:
   schedule:
-    - cron: '0 10 * * *' # everyday at 10am
+    - cron: '0 10 * * 1' # every monday at 10am
   push:
     branches:
       - master
+  workflow_dispatch:
 
 jobs:
   check:
@@ -14,6 +15,7 @@ jobs:
     outputs:
       gitbucket: ${{ steps.gitbucket.outputs.update }}
       registry: ${{ steps.registry.outputs.update }}
+      runner-foxy: ${{ steps.runner-foxy.outputs.update }}
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -26,6 +28,11 @@ jobs:
         id: registry
         run: |
           update=$(python3 scripts/check_updates.py distribution/distribution jqjiang/registry)
+          echo "::set-output name=update::$update"
+      - name: Check Foxy Runner Version
+        id: runner-foxy
+        run: |
+          update=$(python3 scripts/check_updates.py actions/runner jqjiang/runner-ros-foxy)
           echo "::set-output name=update::$update"
   
   build:
@@ -64,3 +71,14 @@ jobs:
           context: docker
           build-args: |
             VERSION=${{ needs.check.outputs.registry }}
+
+      - name: Build ROS Runner Image
+        if: ${{ needs.check.outputs.runner-foxy != 'false' }}
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          file: docker/runner-ros-foxy.Dockerfile
+          tags: jqjiang/runner-ros-foxy:latest,jqjiang/runner-ros-foxy:${{ needs.check.outputs.runner-foxy }}
+          context: docker
+          build-args: |
+            VERSION=${{ needs.check.outputs.runner-foxy }}
